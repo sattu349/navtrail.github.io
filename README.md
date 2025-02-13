@@ -1,75 +1,201 @@
-// Android Java Implementation for NavTrail (Mapping & Navigation Focused App)
-// Using XML Layouts and Jetpack Compose where necessary
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trip Tailor - Travel Planner</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .dark-mode {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+        }
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        nav ul {
+            list-style: none;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+        }
+        nav ul li {
+            margin: 0 15px;
+        }
+        nav ul li a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        section {
+            padding: 20px;
+            text-align: center;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInUp 0.6s forwards;
+        }
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .destination-card:hover {
+            transform: scale(1.05);
+            transition: transform 0.3s;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        #loading {
+            display: none;
+            font-size: 16px;
+            color: #3498db;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Trip Tailor</h1>
+        <nav>
+            <ul>
+                <li><a href="#home">Home</a></li>
+                <li><a href="#destinations">Destinations</a></li>
+                <li><a href="#planner">AI Itinerary Planner</a></li>
+                <li><button onclick="toggleDarkMode()">Toggle Dark Mode</button></li>
+                <li><button onclick="signIn()">Sign In</button></li>
+            </ul>
+        </nav>
+    </header>
+    
+    <section id="home">
+        <h2>Welcome to Trip Tailor</h2>
+        <p>Plan your perfect trip with AI-powered itineraries and hidden gems.</p>
+    </section>
+    
+    <section id="destinations">
+        <h2>Popular Destinations</h2>
+        <div id="destination-list"></div>
+    </section>
+    
+    <section id="planner">
+        <h2>AI Itinerary Planner</h2>
+        <label for="destination">Choose a Destination:</label>
+        <select id="destination"></select>
+        <button onclick="generateItinerary()">Plan My Trip</button>
+        <div id="loading">Generating itinerary...</div>
+        <div id="itinerary"></div>
+    </section>
 
-package com.navtrail;
+    <script>
+        const firebaseConfig = {
+            apiKey: "your-api-key",
+            authDomain: "your-auth-domain",
+            projectId: "your-project-id",
+            storageBucket: "your-storage-bucket",
+            messagingSenderId: "your-messaging-sender-id",
+            appId: "your-app-id"
+        };
 
-import android.os.Bundle;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.navigation.NavController;
-import androidx.navigation.Navigation;
-import androidx.navigation.ui.AppBarConfiguration;
-import androidx.navigation.ui.NavigationUI;
-import com.google.android.material.bottomnavigation.BottomNavigationView;
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
 
-public class MainActivity extends AppCompatActivity {
+        function toggleDarkMode() {
+            document.body.classList.toggle("dark-mode");
+        }
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        function signIn() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider)
+                .then(result => {
+                    alert(`Welcome, ${result.user.displayName}`);
+                })
+                .catch(error => {
+                    console.error("Error signing in:", error);
+                });
+        }
 
-        BottomNavigationView navView = findViewById(R.id.nav_view);
-        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment);
-        AppBarConfiguration appBarConfiguration = new AppBarConfiguration.Builder(
-                R.id.navigation_home, R.id.navigation_search, R.id.navigation_itinerary, R.id.navigation_booking, R.id.navigation_profile
-        ).build();
-        NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
-        NavigationUI.setupWithNavController(navView, navController);
-    }
-}
+        function loadDestinations() {
+            let destinationList = document.getElementById("destination-list");
+            let destinationDropdown = document.getElementById("destination");
+            
+            db.collection("destinations").where("popular", "==", true).get()
+                .then(querySnapshot => {
+                    querySnapshot.forEach(doc => {
+                        let data = doc.data();
+                        let card = document.createElement("div");
+                        card.className = "destination-card";
+                        card.textContent = data.name;
+                        destinationList.appendChild(card);
 
-// Feature Roadmap
-// 🔹 Phase 1: Mapping & Navigation (Core Feature)
-// - Integrate Mapbox SDK + OpenStreetMap (OSM) + Valhalla API
-// - Implement turn-by-turn navigation (real-time with traffic data)
-// - AI-Powered Route Optimization (faster, safer, cost-effective routes)
-// - Add search & discovery for POIs and hidden gems
-// - Offline Navigation (premium feature only)
-// - Live Traffic Data & Crowd Density Insights
-// - Test real-time navigation performance
+                        let option = document.createElement("option");
+                        option.value = doc.id;
+                        option.textContent = data.name;
+                        destinationDropdown.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error("Error loading destinations:", error);
+                });
+        }
 
-// 🔹 Phase 2: AI-Powered Itinerary Planning
-// - Implement AI chat assistant for trip customization
-// - Generate smart itinerary suggestions (AI-powered)
-// - Drag & drop customization for trips
-// - Integrate budget tracking & cost estimation
-// - Smart Travel Assistant for personalized recommendations
-// - Smart Reminders when entering a new city
-// - Real-Time Weather Alerts & Route Adjustments
-// - Test AI itinerary accuracy
+        async function generateItinerary() {
+            const destination = document.getElementById("destination").value;
+            document.getElementById("loading").style.display = "block";
+            
+            try {
+                const response = await fetch("https://your-ai-backend.com/generate-itinerary", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ destination: destination })
+                });
+                
+                if (!response.ok) {
+                    throw new Error("Failed to fetch itinerary");
+                }
+                
+                const data = await response.json();
+                document.getElementById("itinerary").innerHTML = `<h3>Your AI-Generated Itinerary:</h3><p>${data.itinerary}</p>`;
+            } catch (error) {
+                document.getElementById("itinerary").innerHTML = "Error generating itinerary. Please try again.";
+                console.error("Error:", error);
+            } finally {
+                document.getElementById("loading").style.display = "none";
+            }
+        }
 
-// 🔹 Phase 3: Package Booking System
-// - Connect to Expedia/Skyscanner API for flights & hotels
-// - AI-powered custom package suggestions
-// - Add one-click booking & payment integration
-// - Implement user reward system for bookings
-// - Direct train, flight, and hotel bookings via integrations
+        document.addEventListener("DOMContentLoaded", loadDestinations);
+    </script>
+</body>
+</html>
 
-// 🔹 Phase 4: UI/UX Enhancements & Gamification
-// - Develop interactive map UI (dark & pastel themes)
-// - Floating Action Buttons (FABs) for quick access
-// - Gesture-Based Controls (swipe for details, zoom interactions)
-// - Custom Map Themes (day/night, terrain, travel mode-based views)
-// - Implement milestone badges, travel points, & rewards
-// - Beta test app with real users
-
-// 🔹 Phase 5: AR Navigation (Future Scope)
-// - Build Cesium.js integration for 3D maps
-// - Test ARKit/ARCore-based real-world navigation
-// - Hidden Gem Suggestions (AI recommends lesser-known but highly rated places)
-// - Public Transport & Multi-Modal Routing (integrating bus, train, rideshare)
-
-// 🔹 Monetization Strategy
-// - Freemium Model: Free core navigation, premium offline maps, and advanced AI routes.
-// - Ads & Affiliate Revenue: Partnered recommendations for hotels, restaurants, and experiences.
-// - Commission-Based Bookings: Direct train, flight, and hotel bookings via integrations.
